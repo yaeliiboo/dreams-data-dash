@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>יומן חלומות — דשבורד</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+  :root {
+    --bg: #f7f6f2;
+    --surface: #ffffff;
+    --surface2: #f0ede6;
+    --border: rgba(0,0,0,0.08);
+    --border2: rgba(0,0,0,0.15);
+    --text: #1a1916;
+    --text2: #6b6860;
+    --text3: #a09e99;
+    --purple: #7F77DD;
+    --purple-light: #EEEDFE;
+    --purple-dark: #3C3489;
+    --teal: #1D9E75;
+    --teal-light: #E1F5EE;
+    --teal-dark: #085041;
+    --coral: #D85A30;
+    --coral-light: #FAECE7;
+    --coral-dark: #712B13;
+    --pink: #D4537E;
+    --pink-light: #FBEAF0;
+    --pink-dark: #72243E;
+    --amber: #BA7517;
+    --amber-light: #FAEEDA;
+    --amber-dark: #633806;
+    --blue: #378ADD;
+    --blue-light: #E6F1FB;
+    --blue-dark: #0C447C;
+    --red: #E24B4A;
+    --red-light: #FCEBEB;
+    --red-dark: #791F1F;
+    --gray: #888780;
+    --gray-light: #F1EFE8;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, 'Segoe UI', Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    direction: rtl;
+    min-height: 100vh;
+  }
+
+  /* UPLOAD SCREEN */
+  #upload-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 2rem;
+  }
+  .upload-logo {
+    font-size: 48px;
+    margin-bottom: 1rem;
+  }
+  .upload-title {
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+  .upload-sub {
+    font-size: 15px;
+    color: var(--text2);
+    margin-bottom: 2.5rem;
+  }
+  .drop-zone {
+    border: 2px dashed var(--border2);
+    border-radius: var(--radius);
+    background: var(--surface);
+    padding: 3rem 4rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    max-width: 480px;
+    width: 100%;
+  }
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: var(--purple);
+    background: var(--purple-light);
+  }
+  .drop-icon { font-size: 36px; margin-bottom: 12px; }
+  .drop-text { font-size: 16px; font-weight: 500; color: var(--text); margin-bottom: 6px; }
+  .drop-hint { font-size: 13px; color: var(--text3); }
+  #file-input { display: none; }
+  .upload-btn {
+    margin-top: 1.5rem;
+    background: var(--purple);
+    color: white;
+    border: none;
+    padding: 12px 28px;
+    border-radius: var(--radius-sm);
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .upload-btn:hover { opacity: 0.85; }
+  .upload-note {
+    margin-top: 1.5rem;
+    font-size: 12px;
+    color: var(--text3);
+    max-width: 380px;
+    text-align: center;
+    line-height: 1.6;
+  }
+
+  /* DASHBOARD */
+  #dashboard { display: none; }
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-title { font-size: 18px; font-weight: 600; color: var(--text); }
+  .header-sub { font-size: 13px; color: var(--text2); margin-top: 2px; }
+  .reset-btn {
+    background: none;
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-sm);
+    padding: 8px 16px;
+    font-size: 13px;
+    color: var(--text2);
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .reset-btn:hover { background: var(--surface2); }
+
+  .main { padding: 28px 32px; max-width: 1200px; margin: 0 auto; }
+
+  /* YEAR FILTER */
+  .year-filter { display: flex; gap: 8px; margin-bottom: 24px; align-items: center; }
+  .year-filter-label { font-size: 13px; color: var(--text2); margin-left: 4px; }
+  .year-btn {
+    padding: 6px 18px;
+    border-radius: 20px;
+    border: 1px solid var(--border2);
+    background: var(--surface);
+    font-size: 13px;
+    color: var(--text2);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-weight: 500;
+  }
+  .year-btn.active { background: var(--purple); border-color: var(--purple); color: white; }
+  .year-btn:hover:not(.active) { background: var(--surface2); }
+
+  /* SECTION */
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 12px;
+    margin-top: 28px;
+  }
+
+  /* METRICS */
+  .metrics { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 24px; }
+  .metric {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+  }
+  .metric-val { font-size: 30px; font-weight: 600; color: var(--text); line-height: 1; margin-bottom: 6px; }
+  .metric-lbl { font-size: 12px; color: var(--text2); line-height: 1.4; }
+  .metric-sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+  /* GRID LAYOUTS */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .full-col { margin-bottom: 16px; }
+
+  /* CARD */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+  }
+  .card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text2);
+    margin-bottom: 16px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* BAR ROWS */
+  .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .bar-label { font-size: 12px; color: var(--text); min-width: 130px; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-label-wide { min-width: 160px; }
+  .bar-track { flex: 1; background: var(--surface2); border-radius: 3px; height: 7px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+  .bar-count { font-size: 11px; color: var(--text3); min-width: 24px; text-align: left; }
+
+  /* PILL */
+  .pill {
+    display: inline-block;
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-weight: 500;
+    line-height: 1.5;
+  }
+  .pill-purple { background: var(--purple-light); color: var(--purple-dark); }
+  .pill-teal { background: var(--teal-light); color: var(--teal-dark); }
+  .pill-coral { background: var(--coral-light); color: var(--coral-dark); }
+  .pill-amber { background: var(--amber-light); color: var(--amber-dark); }
+  .pill-blue { background: var(--blue-light); color: var(--blue-dark); }
+  .pill-pink { background: var(--pink-light); color: var(--pink-dark); }
+  .pill-red { background: var(--red-light); color: var(--red-dark); }
+  .pill-gray { background: var(--gray-light); color: #444; }
+
+  /* INTENSITY */
+  .intensity-high { color: var(--red); font-weight: 600; }
+  .intensity-med { color: var(--amber); font-weight: 600; }
+  .intensity-low { color: var(--gray); font-weight: 500; }
+
+  /* DREAMS LIST */
+  .dream-item {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.15s;
+    border-radius: 4px;
+    padding-right: 8px;
+  }
+  .dream-item:last-child { border-bottom: none; }
+  .dream-item:hover { background: var(--surface2); }
+  .dream-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .dream-title-text { font-size: 13px; font-weight: 500; color: var(--text); flex: 1; line-height: 1.4; }
+  .dream-meta { font-size: 11px; color: var(--text3); margin-top: 4px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .dream-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
+
+  /* MODAL */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border-radius: var(--radius);
+    max-width: 680px;
+    width: 100%;
+    max-height: 85vh;
+    overflow-y: auto;
+    padding: 28px 32px;
+    position: relative;
+  }
+  .modal-close {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    background: none;
+    border: none;
+    font-size: 22px;
+    cursor: pointer;
+    color: var(--text2);
+    line-height: 1;
+    padding: 4px 8px;
+  }
+  .modal-close:hover { color: var(--text); }
+  .modal-date { font-size: 12px; color: var(--text3); margin-bottom: 6px; }
+  .modal-title { font-size: 20px; font-weight: 600; color: var(--text); margin-bottom: 16px; line-height: 1.3; }
+  .modal-section { margin-bottom: 16px; }
+  .modal-section-label { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+  .modal-text { font-size: 13px; color: var(--text); line-height: 1.7; white-space: pre-wrap; }
+  .modal-divider { height: 1px; background: var(--border); margin: 16px 0; }
+
+  /* CHART */
+  .chart-wrap { position: relative; width: 100%; }
+
+  /* AGENCY PIE LEGEND */
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text2); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+  /* SCROLLABLE DREAMS */
+  .dreams-scroll { max-height: 480px; overflow-y: auto; }
+
+  /* TIMELINE */
+  .timeline { display: flex; align-items: flex-end; gap: 6px; height: 80px; padding-top: 8px; }
+  .tl-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; }
+  .tl-bar { width: 100%; border-radius: 3px 3px 0 0; min-height: 3px; transition: height 0.4s ease; }
+  .tl-label { font-size: 9px; color: var(--text3); margin-top: 4px; }
+  .tl-count { font-size: 10px; color: var(--text2); margin-top: 2px; font-weight: 500; }
+
+  /* HEATMAP */
+  .heatmap { display: flex; flex-wrap: wrap; gap: 3px; }
+  .hm-cell {
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    color: white;
+    font-weight: 600;
+    cursor: default;
+    position: relative;
+  }
+  .hm-cell[title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 32px;
+    right: 50%;
+    transform: translateX(50%);
+    background: var(--text);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    white-space: nowrap;
+    z-index: 10;
+    pointer-events: none;
+  }
+
+  /* EMOTION DIST */
+  .emotion-bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .emotion-score { font-size: 12px; font-weight: 600; color: var(--text); min-width: 20px; text-align: center; }
+
+  /* EMPTY STATE */
+  .empty { text-align: center; padding: 40px; color: var(--text3); font-size: 14px; }
+
+  @media (max-width: 900px) {
+    .metrics { grid-template-columns: repeat(3, 1fr); }
+    .two-col, .three-col { grid-template-columns: 1fr; }
+    .main { padding: 16px; }
+    header { padding: 12px 16px; }
+  }
+  @media (max-width: 600px) {
+    .metrics { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<!-- UPLOAD SCREEN -->
+<div id="upload-screen">
+  <div class="upload-logo">🌙</div>
+  <div class="upload-title">יומן חלומות</div>
+  <div class="upload-sub">העלי את קובץ ה-CSV ותקבלי דשבורד מלא</div>
+  <div class="drop-zone" id="drop-zone">
+    <div class="drop-icon">📄</div>
+    <div class="drop-text">גרורי לכאן את הקובץ</div>
+    <div class="drop-hint">או לחצי לבחירה</div>
+    <input type="file" id="file-input" accept=".csv">
+  </div>
+  <button class="upload-btn" onclick="document.getElementById('file-input').click()">בחרי קובץ CSV</button>
+  <p class="upload-note">הנתונים נשארים אצלך — הכל מעובד בדפדפן, לא נשלח שום דבר לשרת.</p>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard">
+  <header>
+    <div>
+      <div class="header-title">🌙 יומן חלומות — דשבורד</div>
+      <div class="header-sub" id="header-sub">טוען...</div>
+    </div>
+    <button class="reset-btn" onclick="resetDashboard()">⟵ טעיני קובץ אחר</button>
+  </header>
+  <div class="main">
+    <div class="year-filter" id="year-filter"></div>
+    <div id="metrics-row" class="metrics"></div>
+
+    <div class="section-label">התפלגות זמן ורגש</div>
+    <div class="two-col">
+      <div class="card">
+        <div class="card-title">חלומות לפי שנה</div>
+        <div id="by-year-bars"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">עוצמת רגש — התפלגות</div>
+        <div id="emotion-dist"></div>
+      </div>
+    </div>
+
+    <div class="full-col">
+      <div class="card">
+        <div class="card-title">ציר זמן חודשי</div>
+        <div id="timeline-chart"></div>
+      </div>
+    </div>
+
+    <div class="section-label">תכנים וסמלים</div>
+    <div class="three-col">
+      <div class="card">
+        <div class="card-title">מוטיבים עיקריים</div>
+        <div id="motifs-bars"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">אלמנטים חוזרים</div>
+        <div id="elements-bars"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">תחושות סומטיות</div>
+        <div id="somatic-bars"></div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="card">
+        <div class="card-title">דמויות</div>
+        <div id="chars-bars"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">רמת סוכנות</div>
+        <div id="agency-bars"></div>
+        <div id="agency-legend" class="legend"></div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="card">
+        <div class="card-title">מיקומים</div>
+        <div id="location-bars"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">סוג רשומה</div>
+        <div id="type-bars"></div>
+      </div>
+    </div>
+
+    <div class="section-label">רשימת חלומות</div>
+    <div class="card full-col">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div class="card-title" style="margin-bottom:0">כל הרשומות</div>
+        <input type="text" id="dream-search" placeholder="חיפוש בחלומות..." style="padding:6px 12px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-size:13px;background:var(--surface2);color:var(--text);width:220px;direction:rtl">
+      </div>
+      <div class="dreams-scroll" id="dreams-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal" id="modal-content">
+    <button class="modal-close" onclick="closeModal(null, true)">×</button>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+const COL = {
+  DATE: 'תאריך החלום',
+  TYPE: 'טיפול / חלום',
+  TITLE: 'כותרת',
+  SOMATIC: 'תחושה סומטית / התעוררות',
+  MOTIFS: 'מוטיבים עיקריים',
+  ELEMENTS: 'אלמנטים בחלום',
+  DESC: 'תיאור החלום',
+  CHARS: 'דמויות ',
+  AGENCY: 'רמת סוכנות',
+  ASSOC: 'אסוציאציות',
+  LOCATION: 'מיקום',
+  EMOTION: 'עוצמת רגש (0–10)',
+};
+
+let allData = [];
+let filteredData = [];
+let activeYear = 'all';
+let charts = {};
+
+// UPLOAD
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f) parseFile(f);
+});
+fileInput.addEventListener('change', e => { if (e.target.files[0]) parseFile(e.target.files[0]); });
+
+function parseFile(file) {
+  Papa.parse(file, {
+    header: true,
+    skipEmptyLines: true,
+    complete: ({ data }) => {
+      allData = data.map(row => {
+        const raw = row[COL.DATE] || '';
+        const parts = raw.split('/');
+        let dateObj = null;
+        if (parts.length === 3) {
+          dateObj = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+        }
+        return { ...row, _date: dateObj };
+      }).filter(r => r._date && !isNaN(r._date));
+      allData.sort((a, b) => b._date - a._date);
+      initDashboard();
+    }
+  });
+}
+
+function initDashboard() {
+  document.getElementById('upload-screen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+
+  const years = [...new Set(allData.map(r => r._date.getFullYear()))].sort((a,b) => b-a);
+  const filterEl = document.getElementById('year-filter');
+  filterEl.innerHTML = '<span class="year-filter-label">סינון לפי שנה:</span>';
+  const allBtn = document.createElement('button');
+  allBtn.className = 'year-btn active';
+  allBtn.textContent = 'הכל';
+  allBtn.onclick = () => setYear('all');
+  filterEl.appendChild(allBtn);
+  years.forEach(y => {
+    const b = document.createElement('button');
+    b.className = 'year-btn';
+    b.textContent = y;
+    b.onclick = () => setYear(y);
+    filterEl.appendChild(b);
+  });
+
+  setYear('all');
+
+  document.getElementById('dream-search').addEventListener('input', e => {
+    renderDreams(filteredData, e.target.value.trim());
+  });
+}
+
+function setYear(y) {
+  activeYear = y;
+  document.querySelectorAll('.year-btn').forEach(b => {
+    b.classList.toggle('active',
+      (y === 'all' && b.textContent === 'הכל') || String(b.textContent) === String(y));
+  });
+  filteredData = y === 'all' ? allData : allData.filter(r => r._date.getFullYear() === y);
+  renderAll();
+}
+
+function renderAll() {
+  renderMetrics();
+  renderByYear();
+  renderEmotionDist();
+  renderTimeline();
+  renderBars('motifs-bars', splitCountAll(filteredData, COL.MOTIFS), 8, '#7F77DD');
+  renderBars('elements-bars', splitCountAll(filteredData, COL.ELEMENTS), 8, '#1D9E75');
+  renderBars('somatic-bars', splitCountAll(filteredData, COL.SOMATIC), 8, '#D85A30');
+  renderBars('chars-bars', splitCountAll(filteredData, COL.CHARS), 8, '#378ADD');
+  renderBars('agency-bars', splitCountAll(filteredData, COL.AGENCY), 6, '#BA7517');
+  renderBars('location-bars', splitCountAll(filteredData, COL.LOCATION), 6, '#888780');
+  renderBars('type-bars', splitCountAll(filteredData, COL.TYPE), 6, '#534AB7');
+  renderDreams(filteredData, '');
+  const dreams = filteredData.filter(r => r[COL.TYPE] === 'חלום');
+  const total = filteredData.length;
+  const dateRange = filteredData.length > 0
+    ? `${fmt(filteredData[filteredData.length-1]._date)} – ${fmt(filteredData[0]._date)}`
+    : '';
+  document.getElementById('header-sub').textContent = `${total} רשומות · ${dateRange}`;
+}
+
+function fmt(d) {
+  if (!d) return '';
+  return `${d.getDate()}.${d.getMonth()+1}.${d.getFullYear()}`;
+}
+
+function renderMetrics() {
+  const dreams = filteredData.filter(r => r[COL.TYPE] === 'חלום');
+  const withEmotion = filteredData.filter(r => r[COL.EMOTION] && !isNaN(r[COL.EMOTION]));
+  const avgEmotion = withEmotion.length ? (withEmotion.reduce((s,r) => s + parseFloat(r[COL.EMOTION]), 0) / withEmotion.length).toFixed(1) : '—';
+  const maxEmotion = withEmotion.filter(r => parseFloat(r[COL.EMOTION]) >= 10).length;
+  const passiveCount = filteredData.filter(r => (r[COL.AGENCY] || '').includes('פסיבית')).length;
+  const passivePct = filteredData.length ? Math.round(passiveCount / filteredData.length * 100) : 0;
+  const years = [...new Set(filteredData.map(r => r._date.getFullYear()))].length;
+
+  const el = document.getElementById('metrics-row');
+  el.innerHTML = `
+    <div class="metric"><div class="metric-val">${filteredData.length}</div><div class="metric-lbl">רשומות סה״כ</div><div class="metric-sub">${dreams.length} חלומות</div></div>
+    <div class="metric"><div class="metric-val">${avgEmotion}</div><div class="metric-lbl">עוצמת רגש ממוצעת</div><div class="metric-sub">מתוך 10</div></div>
+    <div class="metric"><div class="metric-val">${maxEmotion}</div><div class="metric-lbl">חלומות עוצמה 10</div><div class="metric-sub">מקסימום</div></div>
+    <div class="metric"><div class="metric-val">${passivePct}%</div><div class="metric-lbl">סוכנות פסיבית</div><div class="metric-sub">${passiveCount} חלומות</div></div>
+    <div class="metric"><div class="metric-val">${years > 1 ? years : filteredData.length > 0 ? filteredData[0]._date.getFullYear() : '—'}</div><div class="metric-lbl">${years > 1 ? 'שנות תיעוד' : 'שנה'}</div><div class="metric-sub"> </div></div>
+  `;
+}
+
+function renderByYear() {
+  const counts = {};
+  const sums = {};
+  const cnts = {};
+  allData.forEach(r => {
+    const y = r._date.getFullYear();
+    counts[y] = (counts[y] || 0) + 1;
+    if (r[COL.EMOTION] && !isNaN(r[COL.EMOTION])) {
+      sums[y] = (sums[y] || 0) + parseFloat(r[COL.EMOTION]);
+      cnts[y] = (cnts[y] || 0) + 1;
+    }
+  });
+  const years = Object.keys(counts).sort((a,b) => b-a);
+  const max = Math.max(...Object.values(counts));
+  const colors = ['#7F77DD','#1D9E75','#BA7517','#378ADD','#D85A30'];
+  const el = document.getElementById('by-year-bars');
+  el.innerHTML = years.map((y,i) => {
+    const avg = cnts[y] ? (sums[y]/cnts[y]).toFixed(1) : '—';
+    const pct = Math.round(counts[y]/max*100);
+    const isActive = activeYear === 'all' || String(activeYear) === String(y);
+    const color = colors[i % colors.length];
+    return `<div class="bar-row" style="opacity:${isActive?1:0.4}">
+      <span class="bar-label" style="min-width:50px">${y}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div>
+      <span class="bar-count" style="min-width:60px;color:var(--text2)">${counts[y]} · ★${avg}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderEmotionDist() {
+  const counts = {};
+  filteredData.forEach(r => {
+    if (r[COL.EMOTION] && !isNaN(r[COL.EMOTION])) {
+      const v = Math.round(parseFloat(r[COL.EMOTION]));
+      counts[v] = (counts[v] || 0) + 1;
+    }
+  });
+  const max = Math.max(...Object.values(counts), 1);
+  const colorFor = v => v >= 9 ? '#E24B4A' : v >= 7 ? '#BA7517' : v >= 5 ? '#1D9E75' : '#888780';
+  const el = document.getElementById('emotion-dist');
+  el.innerHTML = [10,9,8,7,6,5,4,3,2,1].map(v => {
+    const c = counts[v] || 0;
+    const pct = Math.round(c/max*100);
+    return `<div class="emotion-bar-row">
+      <span class="emotion-score" style="color:${colorFor(v)}">${v}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${colorFor(v)}"></div></div>
+      <span class="bar-count">${c}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderTimeline() {
+  const counts = {};
+  filteredData.forEach(r => {
+    const key = `${r._date.getFullYear()}-${String(r._date.getMonth()+1).padStart(2,'0')}`;
+    counts[key] = (counts[key] || 0) + 1;
+  });
+  const keys = Object.keys(counts).sort();
+  if (keys.length === 0) { document.getElementById('timeline-chart').innerHTML = '<div class="empty">אין נתונים</div>'; return; }
+  const max = Math.max(...Object.values(counts));
+  const hebrewMonths = ['ינו׳','פבר׳','מרץ','אפר׳','מאי','יונ׳','יול׳','אוג׳','ספט׳','אוק׳','נוב׳','דצ׳'];
+  const el = document.getElementById('timeline-chart');
+  el.innerHTML = `<div class="timeline">${keys.map(k => {
+    const [y,m] = k.split('-');
+    const h = Math.round((counts[k]/max)*70);
+    const label = keys.length <= 24 ? hebrewMonths[parseInt(m)-1] : (parseInt(m)===1?y:'');
+    return `<div class="tl-col">
+      <div class="tl-bar" style="height:${h}px;background:var(--purple)"></div>
+      <div class="tl-label">${label}</div>
+      <div class="tl-count">${counts[k]}</div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function splitCountAll(data, col) {
+  const counts = {};
+  data.forEach(r => {
+    const val = r[col];
+    if (!val || val.trim() === '') return;
+    val.split(',').forEach(v => {
+      const t = v.trim();
+      if (t) counts[t] = (counts[t] || 0) + 1;
+    });
+  });
+  return Object.entries(counts).sort((a,b) => b[1]-a[1]);
+}
+
+function renderBars(elId, entries, limit, color) {
+  const el = document.getElementById(elId);
+  if (!entries.length) { el.innerHTML = '<div class="empty">אין נתונים</div>'; return; }
+  const top = entries.slice(0, limit);
+  const max = top[0][1];
+  el.innerHTML = top.map(([label, count]) => {
+    const pct = Math.round(count/max*100);
+    return `<div class="bar-row">
+      <span class="bar-label">${label}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div>
+      <span class="bar-count">${count}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderDreams(data, search) {
+  const el = document.getElementById('dreams-list');
+  let rows = data;
+  if (search) {
+    const q = search.toLowerCase();
+    rows = data.filter(r =>
+      (r[COL.TITLE]||'').toLowerCase().includes(q) ||
+      (r[COL.DESC]||'').toLowerCase().includes(q) ||
+      (r[COL.MOTIFS]||'').toLowerCase().includes(q) ||
+      (r[COL.CHARS]||'').toLowerCase().includes(q)
+    );
+  }
+  if (!rows.length) { el.innerHTML = '<div class="empty">לא נמצאו חלומות</div>'; return; }
+
+  const emotionColor = v => {
+    if (!v || isNaN(v)) return '';
+    const n = parseFloat(v);
+    if (n >= 9) return 'intensity-high';
+    if (n >= 7) return 'intensity-med';
+    return 'intensity-low';
+  };
+
+  el.innerHTML = rows.map((r, i) => {
+    const title = r[COL.TITLE] || '(ללא כותרת)';
+    const dateStr = fmt(r._date);
+    const type = r[COL.TYPE] || '';
+    const emotion = r[COL.EMOTION];
+    const agency = r[COL.AGENCY] || '';
+    const chars = r[COL.CHARS] || '';
+    const location = r[COL.LOCATION] || '';
+    const emotionClass = emotionColor(emotion);
+
+    const tags = [];
+    if (type) tags.push(`<span class="pill ${type==='חלום'?'pill-purple':'pill-teal'}">${type}</span>`);
+    if (agency) tags.push(`<span class="pill pill-amber">${agency}</span>`);
+    if (location) tags.push(`<span class="pill pill-gray">${location}</span>`);
+
+    return `<div class="dream-item" onclick="openModal(${i})">
+      <div class="dream-row">
+        <div class="dream-title-text">${title}</div>
+        ${emotion && !isNaN(emotion) ? `<span class="${emotionClass}" style="font-size:14px;white-space:nowrap">${parseFloat(emotion).toFixed(0)}/10</span>` : ''}
+      </div>
+      <div class="dream-meta">
+        <span>${dateStr}</span>
+        ${chars ? `<span>👤 ${chars}</span>` : ''}
+      </div>
+      ${tags.length ? `<div class="dream-tags">${tags.join('')}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  window._modalData = rows;
+}
+
+function openModal(i) {
+  const r = window._modalData[i];
+  if (!r) return;
+  const body = document.getElementById('modal-body');
+  const fields = [
+    { label: 'תיאור החלום', val: r[COL.DESC] },
+    { label: 'מוטיבים עיקריים', val: r[COL.MOTIFS] },
+    { label: 'אלמנטים בחלום', val: r[COL.ELEMENTS] },
+    { label: 'דמויות', val: r[COL.CHARS] },
+    { label: 'תחושה סומטית', val: r[COL.SOMATIC] },
+    { label: 'רמת סוכנות', val: r[COL.AGENCY] },
+    { label: 'מיקום', val: r[COL.LOCATION] },
+    { label: 'אסוציאציות', val: r[COL.ASSOC] },
+  ].filter(f => f.val && f.val.trim());
+
+  body.innerHTML = `
+    <div class="modal-date">${fmt(r._date)} · ${r[COL.TYPE]||''} ${r[COL.EMOTION]&&!isNaN(r[COL.EMOTION]) ? `· ⭐ ${parseFloat(r[COL.EMOTION]).toFixed(0)}/10` : ''}</div>
+    <div class="modal-title">${r[COL.TITLE]||'(ללא כותרת)'}</div>
+    ${fields.map(f => `
+      <div class="modal-section">
+        <div class="modal-section-label">${f.label}</div>
+        <div class="modal-text">${f.val.trim()}</div>
+      </div>
+      <div class="modal-divider"></div>
+    `).join('')}
+  `;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function closeModal(e, force) {
+  if (force || e.target === document.getElementById('modal-overlay')) {
+    document.getElementById('modal-overlay').classList.remove('open');
+  }
+}
+
+function resetDashboard() {
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('upload-screen').style.display = 'flex';
+  document.getElementById('file-input').value = '';
+  allData = [];
+  filteredData = [];
+  activeYear = 'all';
+}
+</script>
+</body>
+</html>
